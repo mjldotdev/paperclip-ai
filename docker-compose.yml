@@ -1,5 +1,5 @@
 # Pinned to paperclipai/paperclip:v2026.824.1 per D-1 (tags v2026.824.1 8e6edcd, 2026-08-25)
-# D-2: /workspaces shared 770 rw for paperclip/hermes, opencode sidecar deferred to S-3 (idea.md:§43-44)
+# D-2: /workspaces shared 770 rw for paperclip/hermes/opencode (S-3 activated, idea.md:§43-44)
 services:
   postgres:
     image: postgres:17-alpine
@@ -47,6 +47,20 @@ services:
     command: ["sh", "-c", "mkdir -p /workspaces && echo '{\"timestamp\":\"2026-08-27T00:00:00Z\",\"component\":\"hermes\",\"agent_id\":\"test-hermes\",\"task_id\":\"TASK-001\",\"run_id\":\"RUN-1\",\"event\":\"run_completed\",\"specialist\":\"hermes\"}' && tail -f /dev/null"]
     environment:
       HERMES_GATEWAY_URL: http://hermes:8000
+    volumes:
+      - /workspaces:/workspaces:rw
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  opencode:
+    # S-3: Hermes→OpenCode delegation per §22, shares /workspaces rw, mock that logs §37 opencode run
+    image: node:20-alpine
+    command: ["sh", "-c", "mkdir -p /workspaces && echo '{\"timestamp\":\"2026-08-27T00:00:00Z\",\"component\":\"opencode\",\"task_id\":\"TASK-003\",\"run_id\":\"RUN-3\",\"event\":\"specialist_completed\",\"specialist\":\"opencode\",\"files_changed\":[\"src/hello.ts\"],\"tests\":{\"passed\":1,\"failed\":0}}' && tail -f /dev/null"]
+    environment:
+      OPENCODE_WORKSPACE: /workspaces
     volumes:
       - /workspaces:/workspaces:rw
     healthcheck:
