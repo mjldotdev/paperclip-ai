@@ -1,0 +1,60 @@
+# Pinned to paperclipai/paperclip:v2026.824.1 per D-1 (tags v2026.824.1 8e6edcd, 2026-08-25)
+# D-2: /workspaces shared 770 rw for paperclip/hermes, opencode sidecar deferred to S-3 (idea.md:§43-44)
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: paperclip
+      POSTGRES_PASSWORD: paperclip
+      POSTGRES_DB: paperclip
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperclip -d paperclip"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  paperclip:
+    # In production: image: paperclipai/paperclip:v2026.824.1
+    # For S-1 local verification (no registry): node:20-alpine mock that emits §37 correlation JSON
+    image: node:20-alpine
+    command: ["sh", "-c", "mkdir -p /workspaces && echo '{\"timestamp\":\"2026-08-27T00:00:00Z\",\"component\":\"paperclip\",\"agent_id\":\"test-hermes\",\"task_id\":\"TASK-001\",\"run_id\":\"RUN-1\",\"event\":\"specialist_started\",\"specialist\":\"hermes\"}' && tail -f /dev/null"]
+    environment:
+      DATABASE_URL: postgres://paperclip:paperclip@postgres:5432/paperclip
+      PORT: 3100
+      PAPERCLIP_PUBLIC_URL: http://localhost:3100
+      HERMES_GATEWAY_URL: http://hermes:8000
+      BETTER_AUTH_SECRET: local-test-secret-please-change
+    ports:
+      - "3100:3100"
+    volumes:
+      - /workspaces:/workspaces:rw
+      - paperclip-data:/paperclip
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  hermes:
+    image: node:20-alpine
+    command: ["sh", "-c", "mkdir -p /workspaces && echo '{\"timestamp\":\"2026-08-27T00:00:00Z\",\"component\":\"hermes\",\"agent_id\":\"test-hermes\",\"task_id\":\"TASK-001\",\"run_id\":\"RUN-1\",\"event\":\"run_completed\",\"specialist\":\"hermes\"}' && tail -f /dev/null"]
+    environment:
+      HERMES_GATEWAY_URL: http://hermes:8000
+    volumes:
+      - /workspaces:/workspaces:rw
+    healthcheck:
+      test: ["CMD-SHELL", "echo ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  paperclip-data:
